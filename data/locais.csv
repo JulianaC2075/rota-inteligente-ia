@@ -1,0 +1,14 @@
+id,nome,x,y,tipo
+0,Sabor Express,5,5,restaurante
+1,Centro,5,7,entrega
+2,Vila Nova,3,8,entrega
+3,Jardim Sul,7,8,entrega
+4,Bela Vista,2,5,entrega
+5,Santa Clara,8,5,entrega
+6,Parque Norte,5,10,entrega
+7,Jardim Oeste,1,7,entrega
+8,Vila Leste,9,7,entrega
+9,Jardim das Flores,3,3,entrega
+10,Vila Verde,7,3,entrega
+11,Parque Industrial,5,1,entrega
+12,Lago Azul,9,3,entrega
