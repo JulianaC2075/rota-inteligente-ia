@@ -1,5 +1,6 @@
 import pandas as pd
 
+from clustering import agrupar_entregas_kmeans
 from grafo import carregar_locais, carregar_rotas, construir_grafo
 from bfs import busca_largura
 from dfs import busca_profundidade
@@ -197,6 +198,48 @@ def main():
                 f"{resultado['distancia']:<15.1f}"
                 f"{resultado['vertices']:<12}"
                 f"{resultado['tempo']:<12.4f}"
+            )
+
+        dados_clusterizados, centroides = agrupar_entregas_kmeans(
+        entregas,
+        locais,
+        quantidade_clusters=3
+    )
+
+    print()
+    print("=== AGRUPAMENTO K-MEANS ===")
+    print("Quantidade de zonas: 3")
+
+    for zona in sorted(
+        dados_clusterizados["zona"].unique()
+    ):
+        dados_zona = dados_clusterizados[
+            dados_clusterizados["zona"] == zona
+        ]
+
+        cluster_indice = zona - 1
+
+        centroide_x = centroides[
+            cluster_indice
+        ][0]
+
+        centroide_y = centroides[
+            cluster_indice
+        ][1]
+
+        print()
+        print(
+            f"Zona {zona} "
+            f"- Centroide: "
+            f"({centroide_x:.2f}, {centroide_y:.2f})"
+        )
+
+        for _, entrega in dados_zona.iterrows():
+            print(
+                f"- {entrega['pedido_id']} | "
+                f"{entrega['nome']} | "
+                f"Cliente: {entrega['cliente']} | "
+                f"Prioridade: {entrega['prioridade']}"
             )
 
 
