@@ -1,6 +1,14 @@
 import pandas as pd
 
 from grafo import carregar_locais, carregar_rotas, construir_grafo
+from bfs import busca_largura
+
+
+def obter_nome_local(locais, local_id):
+    return locais.loc[
+        locais["id"] == local_id,
+        "nome"
+    ].iloc[0]
 
 
 def main():
@@ -18,26 +26,47 @@ def main():
     print(f"Entregas cadastradas: {len(entregas)}")
 
     print()
-    print("=== GRAFO DA CIDADE ===")
-    print(f"Vértices: {len(grafo)}")
-    print(f"Arestas: {len(rotas)}")
+    print("=== TESTE BFS ===")
+
+    inicio = 0
+    objetivo = 11
+
+    caminho, visitados = busca_largura(
+        grafo,
+        inicio,
+        objetivo
+    )
+
+    print(
+        f"Origem: {obter_nome_local(locais, inicio)}"
+    )
+
+    print(
+        f"Destino: {obter_nome_local(locais, objetivo)}"
+    )
 
     print()
-    print("Vizinhos da Sabor Express:")
 
-    for vizinho in grafo[0]:
-        destino_id = vizinho["destino"]
-
-        nome_destino = locais.loc[
-            locais["id"] == destino_id,
-            "nome"
-        ].iloc[0]
+    if caminho:
+        nomes_caminho = [
+            obter_nome_local(locais, local_id)
+            for local_id in caminho
+        ]
 
         print(
-            f"- {nome_destino}: "
-            f"{vizinho['distancia_km']} km, "
-            f"{vizinho['tempo_min']} min"
+            "Caminho encontrado: "
+            + " -> ".join(nomes_caminho)
         )
+
+        print(
+            f"Quantidade de conexões: {len(caminho) - 1}"
+        )
+
+        print(
+            f"Vértices analisados: {len(visitados)}"
+        )
+    else:
+        print("Nenhum caminho encontrado.")
 
 
 if __name__ == "__main__":
