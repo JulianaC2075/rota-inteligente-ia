@@ -3,6 +3,7 @@ import pandas as pd
 from grafo import carregar_locais, carregar_rotas, construir_grafo
 from bfs import busca_largura
 from dfs import busca_profundidade
+from astar import busca_a_estrela
 
 
 def obter_nome_local(locais, local_id):
@@ -16,7 +17,8 @@ def exibir_resultado(
     algoritmo,
     caminho,
     visitados,
-    locais
+    locais,
+    custo=None
 ):
     print()
     print(f"=== TESTE {algoritmo} ===")
@@ -35,6 +37,11 @@ def exibir_resultado(
         print(
             f"Quantidade de conexões: {len(caminho) - 1}"
         )
+
+        if custo is not None:
+            print(
+                f"Distância total: {custo:.1f} km"
+            )
 
         print(
             f"Vértices analisados: {len(visitados)}"
@@ -81,6 +88,17 @@ def main():
         objetivo
     )
 
+    (
+        caminho_astar,
+        visitados_astar,
+        custo_astar
+    ) = busca_a_estrela(
+        grafo,
+        locais,
+        inicio,
+        objetivo
+    )
+
     exibir_resultado(
         "BFS",
         caminho_bfs,
@@ -93,6 +111,14 @@ def main():
         caminho_dfs,
         visitados_dfs,
         locais
+    )
+
+    exibir_resultado(
+        "A*",
+        caminho_astar,
+        visitados_astar,
+        locais,
+        custo_astar
     )
 
 
