@@ -41,3 +41,29 @@ def construir_grafo(rotas):
         )
 
     return grafo
+
+
+def aplicar_restricao_rota(grafo, origem, destino):
+    grafo_restrito = {
+        vertice: [
+            vizinho.copy()
+            for vizinho in vizinhos
+        ]
+        for vertice, vizinhos in grafo.items()
+    }
+
+    if origem in grafo_restrito:
+        grafo_restrito[origem] = [
+            vizinho
+            for vizinho in grafo_restrito[origem]
+            if vizinho["destino"] != destino
+        ]
+
+    if destino in grafo_restrito:
+        grafo_restrito[destino] = [
+            vizinho
+            for vizinho in grafo_restrito[destino]
+            if vizinho["destino"] != origem
+        ]
+
+    return grafo_restrito
