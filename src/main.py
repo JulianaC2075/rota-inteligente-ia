@@ -1,11 +1,12 @@
 import pandas as pd
 
-from clustering import agrupar_entregas_kmeans
-from grafo import carregar_locais, carregar_rotas, construir_grafo
-from bfs import busca_largura
-from dfs import busca_profundidade
 from astar import busca_a_estrela, criar_coordenadas
+from bfs import busca_largura
+from clustering import agrupar_entregas_kmeans
+from dfs import busca_profundidade
+from grafo import carregar_locais, carregar_rotas, construir_grafo
 from metricas import calcular_distancia_caminho, medir_tempo_medio
+from planejamento import planejar_rota_zona
 
 
 def obter_nome_local(locais, local_id):
@@ -98,10 +99,7 @@ def main():
         f"Destino: {obter_nome_local(locais, objetivo)}"
     )
 
-    (
-        resultado_bfs,
-        tempo_bfs
-    ) = medir_tempo_medio(
+    resultado_bfs, tempo_bfs = medir_tempo_medio(
         busca_largura,
         grafo,
         inicio,
@@ -111,10 +109,7 @@ def main():
 
     caminho_bfs, visitados_bfs = resultado_bfs
 
-    (
-        resultado_dfs,
-        tempo_dfs
-    ) = medir_tempo_medio(
+    resultado_dfs, tempo_dfs = medir_tempo_medio(
         busca_profundidade,
         grafo,
         inicio,
@@ -124,10 +119,7 @@ def main():
 
     caminho_dfs, visitados_dfs = resultado_dfs
 
-    (
-        resultado_astar,
-        tempo_astar
-    ) = medir_tempo_medio(
+    resultado_astar, tempo_astar = medir_tempo_medio(
         busca_a_estrela,
         grafo,
         coordenadas,
@@ -136,11 +128,7 @@ def main():
         repeticoes=1000
     )
 
-    (
-        caminho_astar,
-        visitados_astar,
-        _
-    ) = resultado_astar
+    caminho_astar, visitados_astar, _ = resultado_astar
 
     resultados = []
 
@@ -200,7 +188,7 @@ def main():
                 f"{resultado['tempo']:<12.4f}"
             )
 
-        dados_clusterizados, centroides = agrupar_entregas_kmeans(
+    dados_clusterizados, centroides = agrupar_entregas_kmeans(
         entregas,
         locais,
         quantidade_clusters=3
@@ -217,15 +205,10 @@ def main():
             dados_clusterizados["zona"] == zona
         ]
 
-        cluster_indice = zona - 1
+        cluster_indice = int(zona) - 1
 
-        centroide_x = centroides[
-            cluster_indice
-        ][0]
-
-        centroide_y = centroides[
-            cluster_indice
-        ][1]
+        centroide_x = centroides[cluster_indice][0]
+        centroide_y = centroides[cluster_indice][1]
 
         print()
         print(
@@ -241,6 +224,93 @@ def main():
                 f"Cliente: {entrega['cliente']} | "
                 f"Prioridade: {entrega['prioridade']}"
             )
+
+    print()
+    print("=== PLANEJAMENTO DAS ROTAS POR ZONA ===")
+
+    distancia_geral = 0.0
+
+    for zona in sorted(
+        dados_clusterizados["zona"].unique()
+    ):
+        dados_zona = dados_clusterizados[
+            dados_clusterizados["zona"] == zona
+        ]
+
+        locais_zona = [
+            int(local_id)
+            for local_id in dados_zona["local_id"].tolist()
+        ]
+
+        planejamento = planejar_rota_zona(
+            grafo,
+            coordenadas,
+            0,
+            locais_zona
+        )
+
+        distancia_geral += planejamento["distancia_total"]
+
+        print()
+        print(f"Zona {zona}")
+
+        nomes_ordem = [
+            obter_nome_local(locais, local_id)
+            for local_id in planejamento["ordem_entregas"]
+        ]
+
+        print(
+            "Ordem das entregas: "
+            + " -> ".join(nomes_ordem)
+        )
+
+        print(
+            f"Distância total da zona: "
+            f"{planejamento['distancia_total']:.1f} km"
+        )
+
+        print(
+            f"Vértices analisados pelo A*: "
+            f"{planejamento['vertices_analisados']}"
+        )
+
+        print("Trechos:")
+
+        for trecho in planejamento["trechos"]:
+            nome_origem = obter_nome_local(
+                locais,
+                trecho["origem"]
+            )
+
+            nome_destino = obter_nome_local(
+                locais,
+                trecho["destino"]
+            )
+
+            nomes_caminho = [
+                obter_nome_local(locais, local_id)
+                for local_id in trecho["caminho"]
+            ]
+
+            print(
+                f"- {nome_origem} -> {nome_destino}"
+            )
+
+            print(
+                "  Caminho: "
+                + " -> ".join(nomes_caminho)
+            )
+
+            print(
+                f"  Distância: "
+                f"{trecho['distancia']:.1f} km"
+            )
+
+    print()
+    print(
+        f"Distância total das três zonas: "
+        f"{distancia_geral:.1f} km"
+    )
 
 
 if __name__ == "__main__":
