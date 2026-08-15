@@ -22,7 +22,10 @@ from grafo import (
     carregar_rotas,
     construir_grafo,
 )
-from planejamento import planejar_rota_zona
+from planejamento import (
+    planejar_rota_zona,
+    planejar_rota_zona_otima,
+)
 
 
 class TestRotaInteligente(unittest.TestCase):
@@ -68,8 +71,16 @@ class TestRotaInteligente(unittest.TestCase):
         )
 
         self.assertIsNotNone(caminho)
-        self.assertEqual(caminho[0], 0)
-        self.assertEqual(caminho[-1], 11)
+
+        self.assertEqual(
+            caminho[0],
+            0
+        )
+
+        self.assertEqual(
+            caminho[-1],
+            11
+        )
 
         self.assertEqual(
             len(caminho) - 1,
@@ -89,8 +100,16 @@ class TestRotaInteligente(unittest.TestCase):
         )
 
         self.assertIsNotNone(caminho)
-        self.assertEqual(caminho[0], 0)
-        self.assertEqual(caminho[-1], 11)
+
+        self.assertEqual(
+            caminho[0],
+            0
+        )
+
+        self.assertEqual(
+            caminho[-1],
+            11
+        )
 
         self.assertGreater(
             len(visitados),
@@ -245,7 +264,7 @@ class TestRotaInteligente(unittest.TestCase):
             set(locais_entregas)
         )
 
-    def test_08_distancia_total_planejamento(self):
+    def test_08_distancia_total_planejamento_heuristico(self):
         dados, _ = agrupar_entregas_kmeans(
             self.entregas,
             self.locais,
@@ -282,6 +301,117 @@ class TestRotaInteligente(unittest.TestCase):
             distancia_total,
             33.7,
             places=1
+        )
+
+    def test_09_planejamento_otimizado(self):
+        dados, _ = agrupar_entregas_kmeans(
+            self.entregas,
+            self.locais,
+            quantidade_clusters=3
+        )
+
+        distancia_heuristica = 0.0
+        distancia_otimizada = 0.0
+
+        entregas_otimizadas = []
+
+        for zona in sorted(
+            dados["zona"].unique()
+        ):
+            dados_zona = dados[
+                dados["zona"] == zona
+            ]
+
+            locais_zona = [
+                int(local_id)
+                for local_id
+                in dados_zona["local_id"].tolist()
+            ]
+
+            planejamento_heuristico = planejar_rota_zona(
+                self.grafo,
+                self.coordenadas,
+                0,
+                locais_zona
+            )
+
+            planejamento_otimo = planejar_rota_zona_otima(
+                self.grafo,
+                self.coordenadas,
+                0,
+                locais_zona
+            )
+
+            distancia_heuristica += planejamento_heuristico[
+                "distancia_total"
+            ]
+
+            distancia_otimizada += planejamento_otimo[
+                "distancia_total"
+            ]
+
+            entregas_otimizadas.extend(
+                planejamento_otimo["ordem_entregas"]
+            )
+
+        self.assertAlmostEqual(
+            distancia_heuristica,
+            33.7,
+            places=1
+        )
+
+        self.assertAlmostEqual(
+            distancia_otimizada,
+            31.2,
+            places=1
+        )
+
+        self.assertLess(
+            distancia_otimizada,
+            distancia_heuristica
+        )
+
+        economia = (
+            distancia_heuristica
+            - distancia_otimizada
+        )
+
+        self.assertAlmostEqual(
+            economia,
+            2.5,
+            places=1
+        )
+
+        percentual_economia = (
+            economia
+            / distancia_heuristica
+        ) * 100
+
+        self.assertAlmostEqual(
+            percentual_economia,
+            7.4,
+            places=1
+        )
+
+        locais_entregas = [
+            int(local_id)
+            for local_id
+            in self.entregas["local_id"].tolist()
+        ]
+
+        self.assertEqual(
+            len(entregas_otimizadas),
+            12
+        )
+
+        self.assertEqual(
+            len(set(entregas_otimizadas)),
+            12
+        )
+
+        self.assertEqual(
+            set(entregas_otimizadas),
+            set(locais_entregas)
         )
 
 

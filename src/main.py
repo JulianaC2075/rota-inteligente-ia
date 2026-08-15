@@ -6,7 +6,10 @@ from clustering import agrupar_entregas_kmeans
 from dfs import busca_profundidade
 from grafo import carregar_locais, carregar_rotas, construir_grafo
 from metricas import calcular_distancia_caminho, medir_tempo_medio
-from planejamento import planejar_rota_zona
+from planejamento import (
+    planejar_rota_zona,
+    planejar_rota_zona_otima
+)
 
 
 def obter_nome_local(locais, local_id):
@@ -99,6 +102,10 @@ def main():
         f"Destino: {obter_nome_local(locais, objetivo)}"
     )
 
+    # =========================================================
+    # BFS
+    # =========================================================
+
     resultado_bfs, tempo_bfs = medir_tempo_medio(
         busca_largura,
         grafo,
@@ -108,6 +115,10 @@ def main():
     )
 
     caminho_bfs, visitados_bfs = resultado_bfs
+
+    # =========================================================
+    # DFS
+    # =========================================================
 
     resultado_dfs, tempo_dfs = medir_tempo_medio(
         busca_profundidade,
@@ -119,6 +130,10 @@ def main():
 
     caminho_dfs, visitados_dfs = resultado_dfs
 
+    # =========================================================
+    # A*
+    # =========================================================
+
     resultado_astar, tempo_astar = medir_tempo_medio(
         busca_a_estrela,
         grafo,
@@ -129,6 +144,10 @@ def main():
     )
 
     caminho_astar, visitados_astar, _ = resultado_astar
+
+    # =========================================================
+    # RESULTADOS DOS ALGORITMOS
+    # =========================================================
 
     resultados = []
 
@@ -165,6 +184,10 @@ def main():
         )
     )
 
+    # =========================================================
+    # COMPARAÇÃO DOS ALGORITMOS
+    # =========================================================
+
     print()
     print("=== COMPARAÇÃO DOS ALGORITMOS ===")
 
@@ -188,6 +211,10 @@ def main():
                 f"{resultado['tempo']:<12.4f}"
             )
 
+    # =========================================================
+    # K-MEANS
+    # =========================================================
+
     dados_clusterizados, centroides = agrupar_entregas_kmeans(
         entregas,
         locais,
@@ -207,8 +234,13 @@ def main():
 
         cluster_indice = int(zona) - 1
 
-        centroide_x = centroides[cluster_indice][0]
-        centroide_y = centroides[cluster_indice][1]
+        centroide_x = centroides[
+            cluster_indice
+        ][0]
+
+        centroide_y = centroides[
+            cluster_indice
+        ][1]
 
         print()
         print(
@@ -225,6 +257,11 @@ def main():
                 f"Prioridade: {entrega['prioridade']}"
             )
 
+    # =========================================================
+    # PLANEJAMENTO HEURÍSTICO
+    # VIZINHO MAIS PRÓXIMO + A*
+    # =========================================================
+
     print()
     print("=== PLANEJAMENTO DAS ROTAS POR ZONA ===")
 
@@ -239,7 +276,8 @@ def main():
 
         locais_zona = [
             int(local_id)
-            for local_id in dados_zona["local_id"].tolist()
+            for local_id
+            in dados_zona["local_id"].tolist()
         ]
 
         planejamento = planejar_rota_zona(
@@ -249,14 +287,17 @@ def main():
             locais_zona
         )
 
-        distancia_geral += planejamento["distancia_total"]
+        distancia_geral += planejamento[
+            "distancia_total"
+        ]
 
         print()
         print(f"Zona {zona}")
 
         nomes_ordem = [
             obter_nome_local(locais, local_id)
-            for local_id in planejamento["ordem_entregas"]
+            for local_id
+            in planejamento["ordem_entregas"]
         ]
 
         print(
@@ -289,7 +330,8 @@ def main():
 
             nomes_caminho = [
                 obter_nome_local(locais, local_id)
-                for local_id in trecho["caminho"]
+                for local_id
+                in trecho["caminho"]
             ]
 
             print(
@@ -310,6 +352,98 @@ def main():
     print(
         f"Distância total das três zonas: "
         f"{distancia_geral:.1f} km"
+    )
+
+    # =========================================================
+    # PLANEJAMENTO OTIMIZADO
+    # TESTE DE TODAS AS ORDENS POSSÍVEIS DA ZONA
+    # =========================================================
+
+    print()
+    print("=== PLANEJAMENTO OTIMIZADO DAS ZONAS ===")
+
+    distancia_otimizada_geral = 0.0
+
+    for zona in sorted(
+        dados_clusterizados["zona"].unique()
+    ):
+        dados_zona = dados_clusterizados[
+            dados_clusterizados["zona"] == zona
+        ]
+
+        locais_zona = [
+            int(local_id)
+            for local_id
+            in dados_zona["local_id"].tolist()
+        ]
+
+        planejamento_otimo = planejar_rota_zona_otima(
+            grafo,
+            coordenadas,
+            0,
+            locais_zona
+        )
+
+        distancia_otimizada_geral += planejamento_otimo[
+            "distancia_total"
+        ]
+
+        nomes_ordem_otima = [
+            obter_nome_local(locais, local_id)
+            for local_id
+            in planejamento_otimo["ordem_entregas"]
+        ]
+
+        print()
+        print(f"Zona {zona}")
+
+        print(
+            "Melhor ordem encontrada: "
+            + " -> ".join(nomes_ordem_otima)
+        )
+
+        print(
+            f"Distância otimizada da zona: "
+            f"{planejamento_otimo['distancia_total']:.1f} km"
+        )
+
+    # =========================================================
+    # COMPARAÇÃO FINAL DO PLANEJAMENTO
+    # =========================================================
+
+    economia = (
+        distancia_geral
+        - distancia_otimizada_geral
+    )
+
+    if distancia_geral > 0:
+        percentual_economia = (
+            economia / distancia_geral
+        ) * 100
+    else:
+        percentual_economia = 0.0
+
+    print()
+    print("=== COMPARAÇÃO FINAL DO PLANEJAMENTO ===")
+
+    print(
+        f"Vizinho mais próximo: "
+        f"{distancia_geral:.1f} km"
+    )
+
+    print(
+        f"Planejamento otimizado: "
+        f"{distancia_otimizada_geral:.1f} km"
+    )
+
+    print(
+        f"Economia de distância: "
+        f"{economia:.1f} km"
+    )
+
+    print(
+        f"Redução percentual: "
+        f"{percentual_economia:.1f}%"
     )
 
 

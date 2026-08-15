@@ -10,7 +10,10 @@ from clustering import agrupar_entregas_kmeans
 from dfs import busca_profundidade
 from grafo import carregar_locais, carregar_rotas, construir_grafo
 from metricas import calcular_distancia_caminho
-from planejamento import planejar_rota_zona
+from planejamento import (
+    planejar_rota_zona,
+    planejar_rota_zona_otima,
+)
 
 
 PASTA_OUTPUTS = Path("outputs")
@@ -68,8 +71,13 @@ def gerar_grafo_cidade(
         rotas
     )
 
-    posicoes = obter_posicoes(locais)
-    nomes = obter_nomes(locais)
+    posicoes = obter_posicoes(
+        locais
+    )
+
+    nomes = obter_nomes(
+        locais
+    )
 
     plt.figure(
         figsize=(14, 10)
@@ -209,8 +217,13 @@ def gerar_clusters(
         "Agrupamento das Entregas com K-Means"
     )
 
-    plt.xlabel("Coordenada X")
-    plt.ylabel("Coordenada Y")
+    plt.xlabel(
+        "Coordenada X"
+    )
+
+    plt.ylabel(
+        "Coordenada Y"
+    )
 
     plt.grid(
         alpha=0.3
@@ -236,7 +249,6 @@ def gerar_clusters(
 
 def gerar_comparacao_algoritmos(
     grafo,
-    locais,
     coordenadas
 ):
     inicio = 0
@@ -360,7 +372,35 @@ def gerar_comparacao_algoritmos(
         bbox_inches="tight"
     )
 
-    plt.close(figura)
+    plt.close(
+        figura
+    )
+
+
+def desenhar_base_grafo(
+    grafo_nx,
+    posicoes,
+    nomes
+):
+    nx.draw_networkx_edges(
+        grafo_nx,
+        posicoes,
+        width=1,
+        alpha=0.25
+    )
+
+    nx.draw_networkx_nodes(
+        grafo_nx,
+        posicoes,
+        node_size=1000
+    )
+
+    nx.draw_networkx_labels(
+        grafo_nx,
+        posicoes,
+        labels=nomes,
+        font_size=8
+    )
 
 
 def gerar_rotas_por_zona(
@@ -393,24 +433,10 @@ def gerar_rotas_por_zona(
         figsize=(14, 10)
     )
 
-    nx.draw_networkx_edges(
+    desenhar_base_grafo(
         grafo_nx,
         posicoes,
-        width=1,
-        alpha=0.25
-    )
-
-    nx.draw_networkx_nodes(
-        grafo_nx,
-        posicoes,
-        node_size=1000
-    )
-
-    nx.draw_networkx_labels(
-        grafo_nx,
-        posicoes,
-        labels=nomes,
-        font_size=8
+        nomes
     )
 
     zonas = sorted(
@@ -423,7 +449,9 @@ def gerar_rotas_por_zona(
         "tab:green"
     ]
 
-    for indice, zona in enumerate(zonas):
+    for indice, zona in enumerate(
+        zonas
+    ):
         dados_zona = dados[
             dados["zona"] == zona
         ]
@@ -463,7 +491,7 @@ def gerar_rotas_por_zona(
         )
 
     plt.title(
-        "Rotas Planejadas por Zona"
+        "Rotas Heurísticas por Zona - 33,7 km"
     )
 
     plt.legend()
@@ -474,6 +502,277 @@ def gerar_rotas_por_zona(
     caminho = (
         PASTA_OUTPUTS
         / "rotas_por_zona.png"
+    )
+
+    plt.savefig(
+        caminho,
+        dpi=200,
+        bbox_inches="tight"
+    )
+
+    plt.close()
+
+
+def gerar_rotas_otimizadas_por_zona(
+    locais,
+    rotas,
+    entregas,
+    grafo,
+    coordenadas
+):
+    dados, _ = agrupar_entregas_kmeans(
+        entregas,
+        locais,
+        quantidade_clusters=3
+    )
+
+    grafo_nx = criar_networkx_grafo(
+        locais,
+        rotas
+    )
+
+    posicoes = obter_posicoes(
+        locais
+    )
+
+    nomes = obter_nomes(
+        locais
+    )
+
+    plt.figure(
+        figsize=(14, 10)
+    )
+
+    desenhar_base_grafo(
+        grafo_nx,
+        posicoes,
+        nomes
+    )
+
+    zonas = sorted(
+        dados["zona"].unique()
+    )
+
+    cores = [
+        "tab:blue",
+        "tab:orange",
+        "tab:green"
+    ]
+
+    distancia_total = 0.0
+
+    for indice, zona in enumerate(
+        zonas
+    ):
+        dados_zona = dados[
+            dados["zona"] == zona
+        ]
+
+        locais_zona = [
+            int(local_id)
+            for local_id
+            in dados_zona["local_id"].tolist()
+        ]
+
+        planejamento = planejar_rota_zona_otima(
+            grafo,
+            coordenadas,
+            0,
+            locais_zona
+        )
+
+        distancia_total += planejamento[
+            "distancia_total"
+        ]
+
+        arestas_rota = []
+
+        for trecho in planejamento["trechos"]:
+            caminho_trecho = trecho[
+                "caminho"
+            ]
+
+            arestas_rota.extend(
+                zip(
+                    caminho_trecho,
+                    caminho_trecho[1:]
+                )
+            )
+
+        nx.draw_networkx_edges(
+            grafo_nx,
+            posicoes,
+            edgelist=arestas_rota,
+            width=4,
+            edge_color=cores[indice],
+            label=f"Zona {zona}"
+        )
+
+    plt.title(
+        f"Rotas Otimizadas por Zona - "
+        f"{distancia_total:.1f} km"
+    )
+
+    plt.legend()
+
+    plt.axis("off")
+    plt.tight_layout()
+
+    caminho = (
+        PASTA_OUTPUTS
+        / "rotas_otimizadas_por_zona.png"
+    )
+
+    plt.savefig(
+        caminho,
+        dpi=200,
+        bbox_inches="tight"
+    )
+
+    plt.close()
+
+
+def calcular_distancias_planejamento(
+    entregas,
+    locais,
+    grafo,
+    coordenadas
+):
+    dados, _ = agrupar_entregas_kmeans(
+        entregas,
+        locais,
+        quantidade_clusters=3
+    )
+
+    distancia_heuristica = 0.0
+    distancia_otimizada = 0.0
+
+    for zona in sorted(
+        dados["zona"].unique()
+    ):
+        dados_zona = dados[
+            dados["zona"] == zona
+        ]
+
+        locais_zona = [
+            int(local_id)
+            for local_id
+            in dados_zona["local_id"].tolist()
+        ]
+
+        planejamento_heuristico = planejar_rota_zona(
+            grafo,
+            coordenadas,
+            0,
+            locais_zona
+        )
+
+        planejamento_otimo = planejar_rota_zona_otima(
+            grafo,
+            coordenadas,
+            0,
+            locais_zona
+        )
+
+        distancia_heuristica += planejamento_heuristico[
+            "distancia_total"
+        ]
+
+        distancia_otimizada += planejamento_otimo[
+            "distancia_total"
+        ]
+
+    return (
+        distancia_heuristica,
+        distancia_otimizada
+    )
+
+
+def gerar_comparacao_planejamento(
+    entregas,
+    locais,
+    grafo,
+    coordenadas
+):
+    (
+        distancia_heuristica,
+        distancia_otimizada
+    ) = calcular_distancias_planejamento(
+        entregas,
+        locais,
+        grafo,
+        coordenadas
+    )
+
+    economia = (
+        distancia_heuristica
+        - distancia_otimizada
+    )
+
+    percentual = (
+        economia / distancia_heuristica
+    ) * 100
+
+    estrategias = [
+        "Vizinho mais próximo",
+        "Planejamento otimizado"
+    ]
+
+    distancias = [
+        distancia_heuristica,
+        distancia_otimizada
+    ]
+
+    plt.figure(
+        figsize=(9, 6)
+    )
+
+    barras = plt.bar(
+        estrategias,
+        distancias
+    )
+
+    plt.title(
+        "Comparação das Estratégias de Planejamento"
+    )
+
+    plt.ylabel(
+        "Distância total (km)"
+    )
+
+    plt.ylim(
+        0,
+        max(distancias) + 7
+    )
+
+    for barra, distancia in zip(
+        barras,
+        distancias
+    ):
+        plt.text(
+            barra.get_x()
+            + barra.get_width() / 2,
+            barra.get_height() + 0.4,
+            f"{distancia:.1f} km",
+            ha="center"
+        )
+
+    plt.text(
+        0.5,
+        max(distancias) + 4,
+        (
+            f"Economia: {economia:.1f} km "
+            f"({percentual:.1f}%)"
+        ),
+        ha="center",
+        fontsize=11
+    )
+
+    plt.tight_layout()
+
+    caminho = (
+        PASTA_OUTPUTS
+        / "comparacao_planejamento.png"
     )
 
     plt.savefig(
@@ -527,18 +826,40 @@ def main():
 
     gerar_comparacao_algoritmos(
         grafo,
-        locais,
         coordenadas
     )
 
     print(
-        "Gerando planejamento das rotas..."
+        "Gerando rotas heurísticas..."
     )
 
     gerar_rotas_por_zona(
         locais,
         rotas,
         entregas,
+        grafo,
+        coordenadas
+    )
+
+    print(
+        "Gerando rotas otimizadas..."
+    )
+
+    gerar_rotas_otimizadas_por_zona(
+        locais,
+        rotas,
+        entregas,
+        grafo,
+        coordenadas
+    )
+
+    print(
+        "Gerando comparação dos planejamentos..."
+    )
+
+    gerar_comparacao_planejamento(
+        entregas,
+        locais,
         grafo,
         coordenadas
     )

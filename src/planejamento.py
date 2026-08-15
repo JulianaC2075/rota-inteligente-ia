@@ -1,4 +1,5 @@
 import math
+from itertools import permutations
 
 from astar import busca_a_estrela
 
@@ -51,11 +52,7 @@ def planejar_rota_zona(
             coordenadas
         )
 
-        (
-            caminho,
-            visitados,
-            custo
-        ) = busca_a_estrela(
+        caminho, visitados, custo = busca_a_estrela(
             grafo,
             coordenadas,
             atual,
@@ -91,4 +88,109 @@ def planejar_rota_zona(
         "trechos": trechos,
         "distancia_total": distancia_total,
         "vertices_analisados": vertices_analisados_total
+    }
+
+
+def planejar_rota_zona_otima(
+    grafo,
+    coordenadas,
+    local_restaurante,
+    locais_entrega
+):
+    melhor_ordem = None
+    melhores_trechos = None
+
+    menor_distancia = float("inf")
+    melhor_vertices_analisados = 0
+
+    cache_trechos = {}
+
+    def obter_trecho(origem, destino):
+        chave = (
+            origem,
+            destino
+        )
+
+        if chave not in cache_trechos:
+            caminho, visitados, custo = busca_a_estrela(
+                grafo,
+                coordenadas,
+                origem,
+                destino
+            )
+
+            if caminho is None:
+                return None
+
+            cache_trechos[chave] = {
+                "origem": origem,
+                "destino": destino,
+                "caminho": caminho,
+                "distancia": custo,
+                "vertices_analisados": len(visitados)
+            }
+
+        return cache_trechos[chave]
+
+    for ordem in permutations(locais_entrega):
+        atual = local_restaurante
+
+        distancia_total = 0.0
+        vertices_analisados_total = 0
+
+        trechos = []
+
+        rota_valida = True
+
+        for destino in ordem:
+            trecho = obter_trecho(
+                atual,
+                destino
+            )
+
+            if trecho is None:
+                rota_valida = False
+                break
+
+            distancia_total += trecho[
+                "distancia"
+            ]
+
+            vertices_analisados_total += trecho[
+                "vertices_analisados"
+            ]
+
+            trechos.append(
+                trecho.copy()
+            )
+
+            atual = destino
+
+        if (
+            rota_valida
+            and distancia_total < menor_distancia
+        ):
+            menor_distancia = distancia_total
+
+            melhor_ordem = list(
+                ordem
+            )
+
+            melhores_trechos = trechos
+
+            melhor_vertices_analisados = (
+                vertices_analisados_total
+            )
+
+    if melhor_ordem is None:
+        raise ValueError(
+            "Não foi possível encontrar uma rota "
+            "que atenda todas as entregas da zona."
+        )
+
+    return {
+        "ordem_entregas": melhor_ordem,
+        "trechos": melhores_trechos,
+        "distancia_total": menor_distancia,
+        "vertices_analisados": melhor_vertices_analisados
     }
