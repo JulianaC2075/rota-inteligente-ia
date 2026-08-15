@@ -2,28 +2,33 @@ import heapq
 import math
 
 
-def calcular_heuristica(locais, atual, objetivo):
-    local_atual = locais.loc[
-        locais["id"] == atual
-    ].iloc[0]
+def criar_coordenadas(locais):
+    coordenadas = {}
 
-    local_objetivo = locais.loc[
-        locais["id"] == objetivo
-    ].iloc[0]
+    for _, local in locais.iterrows():
+        coordenadas[int(local["id"])] = (
+            float(local["x"]),
+            float(local["y"])
+        )
 
-    diferenca_x = local_atual["x"] - local_objetivo["x"]
-    diferenca_y = local_atual["y"] - local_objetivo["y"]
+    return coordenadas
+
+
+def calcular_heuristica(coordenadas, atual, objetivo):
+    x_atual, y_atual = coordenadas[atual]
+    x_objetivo, y_objetivo = coordenadas[objetivo]
+
+    diferenca_x = x_atual - x_objetivo
+    diferenca_y = y_atual - y_objetivo
 
     distancia_euclidiana = math.sqrt(
         diferenca_x ** 2 + diferenca_y ** 2
     )
 
-    # Fator conservador para manter a estimativa
-    # abaixo dos custos reais das rotas deste cenário.
     return distancia_euclidiana * 0.9
 
 
-def busca_a_estrela(grafo, locais, inicio, objetivo):
+def busca_a_estrela(grafo, coordenadas, inicio, objetivo):
     fila_prioridade = []
 
     custo_acumulado = {
@@ -38,7 +43,7 @@ def busca_a_estrela(grafo, locais, inicio, objetivo):
     visitados = set()
 
     heuristica_inicial = calcular_heuristica(
-        locais,
+        coordenadas,
         inicio,
         objetivo
     )
@@ -77,7 +82,7 @@ def busca_a_estrela(grafo, locais, inicio, objetivo):
                 pais[destino] = atual
 
                 heuristica = calcular_heuristica(
-                    locais,
+                    coordenadas,
                     destino,
                     objetivo
                 )
